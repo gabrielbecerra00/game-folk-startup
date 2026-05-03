@@ -1,0 +1,293 @@
+#include "oled.h"
+#include "ti/driverlib/dl_spi.h"
+#include "ti/driverlib/dl_gpio.h"
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Framebuffer  (128 cols × 8 pages × 1 byte/page = 1 024 bytes)
+// Byte layout: framebuf[page * 128 + col]
+//   bit 0 = topmost pixel of the page, bit 7 = bottom
+// ─────────────────────────────────────────────────────────────────────────────
+static uint8_t fb[OLED_W * (OLED_H / 8)];   // 1 024 bytes
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 5×7 font (stored column-major, LSB = top pixel)
+// Each character = 5 bytes.  First char = ASCII 0x20 (space)
+// ─────────────────────────────────────────────────────────────────────────────
+static const uint8_t font5x7[][5] = {
+    {0x00,0x00,0x00,0x00,0x00}, //  (space)
+    {0x00,0x00,0x5F,0x00,0x00}, // !
+    {0x00,0x07,0x00,0x07,0x00}, // "
+    {0x14,0x7F,0x14,0x7F,0x14}, // #
+    {0x24,0x2A,0x7F,0x2A,0x12}, // $
+    {0x23,0x13,0x08,0x64,0x62}, // %
+    {0x36,0x49,0x55,0x22,0x50}, // &
+    {0x00,0x05,0x03,0x00,0x00}, // '
+    {0x00,0x1C,0x22,0x41,0x00}, // (
+    {0x00,0x41,0x22,0x1C,0x00}, // )
+    {0x08,0x2A,0x1C,0x2A,0x08}, // *
+    {0x08,0x08,0x3E,0x08,0x08}, // +
+    {0x00,0x50,0x30,0x00,0x00}, // ,
+    {0x08,0x08,0x08,0x08,0x08}, // -
+    {0x00,0x30,0x30,0x00,0x00}, // .
+    {0x20,0x10,0x08,0x04,0x02}, // /
+    {0x3E,0x51,0x49,0x45,0x3E}, // 0
+    {0x00,0x42,0x7F,0x40,0x00}, // 1
+    {0x42,0x61,0x51,0x49,0x46}, // 2
+    {0x21,0x41,0x45,0x4B,0x31}, // 3
+    {0x18,0x14,0x12,0x7F,0x10}, // 4
+    {0x27,0x45,0x45,0x45,0x39}, // 5
+    {0x3C,0x4A,0x49,0x49,0x30}, // 6
+    {0x01,0x71,0x09,0x05,0x03}, // 7
+    {0x36,0x49,0x49,0x49,0x36}, // 8
+    {0x06,0x49,0x49,0x29,0x1E}, // 9
+    {0x00,0x36,0x36,0x00,0x00}, // :
+    {0x00,0x56,0x36,0x00,0x00}, // ;
+    {0x00,0x08,0x14,0x22,0x41}, // <
+    {0x14,0x14,0x14,0x14,0x14}, // =
+    {0x41,0x22,0x14,0x08,0x00}, // >
+    {0x02,0x01,0x51,0x09,0x06}, // ?
+    {0x32,0x49,0x79,0x41,0x3E}, // @
+    {0x7E,0x11,0x11,0x11,0x7E}, // A
+    {0x7F,0x49,0x49,0x49,0x36}, // B
+    {0x3E,0x41,0x41,0x41,0x22}, // C
+    {0x7F,0x41,0x41,0x22,0x1C}, // D
+    {0x7F,0x49,0x49,0x49,0x41}, // E
+    {0x7F,0x09,0x09,0x09,0x01}, // F
+    {0x3E,0x41,0x41,0x49,0x7A}, // G
+    {0x7F,0x08,0x08,0x08,0x7F}, // H
+    {0x00,0x41,0x7F,0x41,0x00}, // I
+    {0x20,0x40,0x41,0x3F,0x01}, // J
+    {0x7F,0x08,0x14,0x22,0x41}, // K
+    {0x7F,0x40,0x40,0x40,0x40}, // L
+    {0x7F,0x02,0x04,0x02,0x7F}, // M
+    {0x7F,0x04,0x08,0x10,0x7F}, // N
+    {0x3E,0x41,0x41,0x41,0x3E}, // O
+    {0x7F,0x09,0x09,0x09,0x06}, // P
+    {0x3E,0x41,0x51,0x21,0x5E}, // Q
+    {0x7F,0x09,0x19,0x29,0x46}, // R
+    {0x46,0x49,0x49,0x49,0x31}, // S
+    {0x01,0x01,0x7F,0x01,0x01}, // T
+    {0x3F,0x40,0x40,0x40,0x3F}, // U
+    {0x1F,0x20,0x40,0x20,0x1F}, // V
+    {0x3F,0x40,0x38,0x40,0x3F}, // W
+    {0x63,0x14,0x08,0x14,0x63}, // X
+    {0x03,0x04,0x78,0x04,0x03}, // Y
+    {0x61,0x51,0x49,0x45,0x43}, // Z
+    {0x00,0x00,0x7F,0x41,0x41}, // [
+    {0x02,0x04,0x08,0x10,0x20}, /* \ */
+    {0x41,0x41,0x7F,0x00,0x00}, // ]
+    {0x04,0x02,0x01,0x02,0x04}, // ^
+    {0x40,0x40,0x40,0x40,0x40}, // _
+    {0x00,0x01,0x02,0x04,0x00}, // `
+    {0x20,0x54,0x54,0x54,0x78}, // a
+    {0x7F,0x48,0x44,0x44,0x38}, // b
+    {0x38,0x44,0x44,0x44,0x20}, // c
+    {0x38,0x44,0x44,0x48,0x7F}, // d
+    {0x38,0x54,0x54,0x54,0x18}, // e
+    {0x08,0x7E,0x09,0x01,0x02}, // f
+    {0x08,0x14,0x54,0x54,0x3C}, // g
+    {0x7F,0x08,0x04,0x04,0x78}, // h
+    {0x00,0x44,0x7D,0x40,0x00}, // i
+    {0x20,0x40,0x44,0x3D,0x00}, // j
+    {0x00,0x7F,0x10,0x28,0x44}, // k
+    {0x00,0x41,0x7F,0x40,0x00}, // l
+    {0x7C,0x04,0x18,0x04,0x78}, // m
+    {0x7C,0x08,0x04,0x04,0x78}, // n
+    {0x38,0x44,0x44,0x44,0x38}, // o
+    {0x7C,0x14,0x14,0x14,0x08}, // p
+    {0x08,0x14,0x14,0x18,0x7C}, // q
+    {0x7C,0x08,0x04,0x04,0x08}, // r
+    {0x48,0x54,0x54,0x54,0x20}, // s
+    {0x04,0x3F,0x44,0x40,0x20}, // t
+    {0x3C,0x40,0x40,0x20,0x7C}, // u
+    {0x1C,0x20,0x40,0x20,0x1C}, // v
+    {0x3C,0x40,0x30,0x40,0x3C}, // w
+    {0x44,0x28,0x10,0x28,0x44}, // x
+    {0x0C,0x50,0x50,0x50,0x3C}, // y
+    {0x44,0x64,0x54,0x4C,0x44}, // z
+    {0x00,0x08,0x36,0x41,0x00}, // {
+    {0x00,0x00,0x7F,0x00,0x00}, // |
+    {0x00,0x41,0x36,0x08,0x00}, // }
+    {0x08,0x08,0x2A,0x1C,0x08}, // →  (tilde replaced with arrow for fun)
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Low-level SPI / GPIO helpers
+// ─────────────────────────────────────────────────────────────────────────────
+static void delay_ms(uint32_t ms)
+{
+    // Calibrated for 32 MHz MCLK. Adjust if you use a different clock.
+    for (uint32_t i = 0; i < ms * 3200u; i++) { __NOP(); }
+}
+
+static inline void spi_write(uint8_t byte)
+{
+    // SPI1 → PB8 MOSI, PB9 CLK  (set in SysConfig as SPI_1_INST)
+    DL_SPI_transmitData8(SPI_0_INST, byte);
+    while (DL_SPI_isBusy(SPI_0_INST)) { }
+}
+
+static inline void cmd(uint8_t c)
+{
+    DL_GPIO_clearPins(OLED_PORT, OLED_DC_PIN);   // DC=0 → command
+    DL_GPIO_clearPins(OLED_PORT, OLED_CS_PIN);   // CS  asserted
+    spi_write(c);
+    DL_GPIO_setPins(OLED_PORT, OLED_CS_PIN);     // CS  deasserted
+}
+
+
+// ─────────────────────────────────────────────────────────────────────────────
+// SSD1309 init sequence
+// ─────────────────────────────────────────────────────────────────────────────
+void OLED_Init(void)
+{
+    // Hardware reset (RST low → high)
+    DL_GPIO_clearPins(OLED_PORT, OLED_RST_PIN);
+    delay_ms(10);
+    DL_GPIO_setPins(OLED_PORT, OLED_RST_PIN);
+    delay_ms(10);
+
+    cmd(0xAE);              // display off
+
+    cmd(0xD5); cmd(0x80);   // clock div / osc freq
+    cmd(0xA8); cmd(0x3F);   // mux ratio = 64
+    cmd(0xD3); cmd(0x00);   // display offset = 0
+    cmd(0x40);              // start line = 0
+
+    cmd(0xA1);              // segment remap: col 127 → SEG0
+    cmd(0xC8);              // COM scan: reversed (top-to-bottom)
+
+    cmd(0xDA); cmd(0x12);   // COM pin config (alt, no remap)
+    cmd(0x81); cmd(0xCF);   // contrast = 207
+    cmd(0xD9); cmd(0xF1);   // pre-charge = phase2:15, phase1:1
+    cmd(0xDB); cmd(0x40);   // Vcomh deselect level
+    cmd(0xA4);              // use GDDRAM (not force-all-on)
+    cmd(0xA6);              // normal display (not inverted)
+
+    cmd(0x8D); cmd(0x14);   // enable charge pump
+    cmd(0x20); cmd(0x00);   // horizontal addressing mode
+
+    cmd(0xAF);              // display ON
+
+    OLED_Clear();
+    OLED_Flush();           // blank screen on startup
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Framebuffer operations
+// ─────────────────────────────────────────────────────────────────────────────
+void OLED_Clear(void)  { memset(fb, 0x00, sizeof(fb)); }
+void OLED_Fill(uint8_t color) { memset(fb, color ? 0xFF : 0x00, sizeof(fb)); }
+
+void OLED_Flush(void)
+{
+    // Set column address: 0 → 127
+    cmd(0x21); cmd(0); cmd(127);
+    // Set page address:   0 → 7
+    cmd(0x22); cmd(0); cmd(7);
+
+    // Bulk-write all 1 024 bytes as data
+    DL_GPIO_setPins(OLED_PORT, OLED_DC_PIN);     // DC=1 data
+    DL_GPIO_clearPins(OLED_PORT, OLED_CS_PIN);   // CS low
+
+    for (uint16_t i = 0; i < sizeof(fb); i++) {
+        DL_SPI_transmitData8(SPI_0_INST, fb[i]);
+        while (DL_SPI_isBusy(SPI_0_INST)) { }
+    }
+
+    DL_GPIO_setPins(OLED_PORT, OLED_CS_PIN);     // CS high
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Pixel & primitives
+// ─────────────────────────────────────────────────────────────────────────────
+void OLED_DrawPixel(int16_t x, int16_t y, uint8_t color)
+{
+    if ((uint16_t)x >= OLED_W || (uint16_t)y >= OLED_H) return;
+    uint16_t idx = (uint16_t)x + ((uint16_t)y / 8u) * OLED_W;
+    uint8_t  bit = 1u << ((uint16_t)y % 8u);
+    if (color) fb[idx] |=  bit;
+    else        fb[idx] &= ~bit;
+}
+
+void OLED_DrawHLine(int16_t x, int16_t y, int16_t len, uint8_t color)
+{
+    for (int16_t i = 0; i < len; i++) OLED_DrawPixel(x + i, y, color);
+}
+
+void OLED_DrawVLine(int16_t x, int16_t y, int16_t len, uint8_t color)
+{
+    for (int16_t i = 0; i < len; i++) OLED_DrawPixel(x, y + i, color);
+}
+
+void OLED_DrawRect(int16_t x, int16_t y, int16_t w, int16_t h, uint8_t color)
+{
+    OLED_DrawHLine(x,         y,         w, color);   // top
+    OLED_DrawHLine(x,         y + h - 1, w, color);   // bottom
+    OLED_DrawVLine(x,         y,         h, color);   // left
+    OLED_DrawVLine(x + w - 1, y,         h, color);   // right
+}
+
+void OLED_FillRect(int16_t x, int16_t y, int16_t w, int16_t h, uint8_t color)
+{
+    for (int16_t row = y; row < y + h; row++)
+        OLED_DrawHLine(x, row, w, color);
+}
+
+void OLED_DrawCircle(int16_t cx, int16_t cy, int16_t r, uint8_t color)
+{
+    // Bresenham midpoint circle
+    int16_t x = 0, y = r, d = 1 - r;
+    while (x <= y) {
+        OLED_DrawPixel(cx+x, cy+y, color); OLED_DrawPixel(cx-x, cy+y, color);
+        OLED_DrawPixel(cx+x, cy-y, color); OLED_DrawPixel(cx-x, cy-y, color);
+        OLED_DrawPixel(cx+y, cy+x, color); OLED_DrawPixel(cx-y, cy+x, color);
+        OLED_DrawPixel(cx+y, cy-x, color); OLED_DrawPixel(cx-y, cy-x, color);
+        if (d < 0) d += 2*x + 3;
+        else      { d += 2*(x-y) + 5; y--; }
+        x++;
+    }
+}
+
+void OLED_DrawBitmap(int16_t x, int16_t y, int16_t w, int16_t h, const uint8_t *bmp)
+{
+    for (int16_t row = 0; row < h; row++) {
+        for (int16_t col = 0; col < w; col++) {
+            uint8_t byte = bmp[col + (row / 8) * w];
+            uint8_t pix  = (byte >> (row % 8)) & 0x01;
+            OLED_DrawPixel(x + col, y + row, pix);
+        }
+    }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Text  (5×7 font, scalable)
+// ─────────────────────────────────────────────────────────────────────────────
+void OLED_DrawChar(int16_t x, int16_t y, char c, uint8_t color, uint8_t scale)
+{
+    if (c < 0x20 || c > 0x7E) c = '?';
+    const uint8_t *glyph = font5x7[c - 0x20];
+
+    for (uint8_t col = 0; col < 5; col++) {
+        uint8_t line = glyph[col];
+        for (uint8_t row = 0; row < 7; row++) {
+            if (line & (1 << row)) {
+                if (scale == 1) {
+                    OLED_DrawPixel(x + col, y + row, color);
+                } else {
+                    OLED_FillRect(x + col*scale, y + row*scale,
+                                  scale, scale, color);
+                }
+            }
+        }
+    }
+}
+
+void OLED_DrawString(int16_t x, int16_t y, const char *str, uint8_t color, uint8_t scale)
+{
+    int16_t cx = x;
+    while (*str) {
+        OLED_DrawChar(cx, y, *str++, color, scale);
+        cx += (5 + 1) * scale;   // 5px glyph + 1px spacing, scaled
+    }
+}
