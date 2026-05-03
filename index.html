@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GameFolk V1 - ELEC 327 Final Project</title>
+<style>
+  :root {
+    --text: #1a1a1a;
+    --muted: #666;
+    --link: #0645ad;
+    --border: #ddd;
+    --bg-soft: #fafafa;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    font-family: Georgia, "Times New Roman", serif;
+    color: var(--text);
+    background: #fff;
+    max-width: 780px;
+    margin: 0 auto;
+    padding: 2.5rem 1.5rem 4rem;
+    line-height: 1.6;
+    font-size: 17px;
+  }
+
+  header {
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 1.2rem;
+    margin-bottom: 2rem;
+  }
+
+  h1 {
+    font-size: 1.9rem;
+    margin: 0 0 0.4rem;
+    font-weight: normal;
+  }
+
+  .subtitle {
+    color: var(--muted);
+    font-style: italic;
+    margin: 0;
+  }
+
+  .meta {
+    color: var(--muted);
+    font-size: 0.92rem;
+    margin-top: 0.6rem;
+  }
+
+  h2 {
+    font-size: 1.3rem;
+    margin: 2.2rem 0 0.8rem;
+    font-weight: normal;
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 0.3rem;
+  }
+
+  p { margin: 0.8rem 0; }
+
+  a {
+    color: var(--link);
+    text-decoration: none;
+  }
+  a:hover { text-decoration: underline; }
+
+  ul {
+    margin: 0.8rem 0;
+    padding-left: 1.4rem;
+  }
+  li { margin: 0.25rem 0; }
+
+  .video-wrap {
+    position: relative;
+    width: 100%;
+    padding-bottom: 56.25%;
+    height: 0;
+    margin: 1rem 0;
+    background: #000;
+  }
+  .video-wrap iframe {
+    position: absolute;
+    top: 0; left: 0;
+    width: 100%;
+    height: 100%;
+    border: 0;
+  }
+
+  .pcb-image {
+    width: 100%;
+    border: 1px solid var(--border);
+    background: var(--bg-soft);
+    margin: 1rem 0;
+    display: block;
+  }
+
+  .pcb-placeholder {
+    width: 100%;
+    aspect-ratio: 4 / 3;
+    border: 1px dashed var(--border);
+    background: var(--bg-soft);
+    color: var(--muted);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-style: italic;
+    font-size: 0.95rem;
+    margin: 1rem 0;
+  }
+
+  .pdf-actions {
+    margin: 1rem 0;
+    display: flex;
+    gap: 0.8rem;
+    flex-wrap: wrap;
+  }
+
+  .btn {
+    display: inline-block;
+    padding: 0.55rem 1.1rem;
+    border: 1px solid var(--text);
+    color: var(--text);
+    background: #fff;
+    font-family: inherit;
+    font-size: 0.95rem;
+    text-decoration: none;
+  }
+  .btn:hover {
+    background: var(--text);
+    color: #fff;
+    text-decoration: none;
+  }
+
+  .pdf-embed {
+    width: 100%;
+    height: 720px;
+    border: 1px solid var(--border);
+    margin: 1rem 0;
+    background: var(--bg-soft);
+  }
+
+  .pdf-fallback {
+    color: var(--muted);
+    font-size: 0.9rem;
+    font-style: italic;
+  }
+
+  footer {
+    margin-top: 3rem;
+    padding-top: 1rem;
+    border-top: 1px solid var(--border);
+    color: var(--muted);
+    font-size: 0.88rem;
+  }
+
+  @media (max-width: 600px) {
+    body { padding: 1.5rem 1rem 3rem; font-size: 16px; }
+    h1 { font-size: 1.5rem; }
+    .pdf-embed { height: 500px; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>GameFolk V1</h1>
+  <p class="subtitle">A Custom Embedded Handheld Game Console</p>
+  <p class="meta">ELEC 327 Final Project &middot; Spring 2026 &middot; Rice University</p>
+</header>
+
+<section>
+  <h2>About</h2>
+  <p>
+    GameFolk V1 is a self-contained handheld game console built on a custom PCB.
+    It runs on an MSPM0G3507 microcontroller driving a 128x64 OLED display,
+    polls eight tactile buttons, and synthesizes audio through a piezo buzzer.
+    The whole system is powered by three AAA batteries through an onboard regulator,
+    so it runs independently of any debug hardware.
+  </p>
+  <p>
+    Four games are playable from the main menu:
+  </p>
+  <ul>
+    <li><strong>Pong</strong> &mdash; single-player with position-dependent paddle deflection</li>
+    <li><strong>2P Pong</strong> &mdash; two players on one device, first to 5 wins</li>
+    <li><strong>Platformer</strong> &mdash; side-scrolling with a speedrun timer driven by the MSPM0's RTC peripheral</li>
+    <li><strong>Tetris</strong> &mdash; all 7 tetrominoes, wall-kick rotation, ghost piece, NES-style scoring</li>
+  </ul>
+  <p>
+    The project demonstrates custom PCB design, SPI communication, GPIO input
+    with internal pull-ups, software square-wave audio synthesis, and use of the
+    RTC peripheral as a wall-clock time source.
+  </p>
+</section>
+
+<section>
+  <h2>Demo Video</h2>
+  <div class="video-wrap">
+    <iframe
+      src="https://www.youtube.com/embed/gC-M8yv8BCI"
+      title="GameFolk V1 Demo"
+      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+      allowfullscreen></iframe>
+  </div>
+</section>
+
+<section>
+  <h2>PCB</h2>
+  <!--
+    To replace the placeholder, drop a photo into this folder (e.g. pcb.jpg)
+    and uncomment the <img> tag below, then delete the placeholder div.
+  -->
+  <!--
+  <img src="pcb.jpg" alt="GameFolk V1 PCB" class="pcb-image">
+  -->
+  <div class="pcb-placeholder">
+    [PCB photo goes here &mdash; replace this placeholder in index.html]
+  </div>
+</section>
+
+<section>
+  <h2>Written Report</h2>
+  <div class="pdf-actions">
+    <a href="GameFolk_Report.pdf" class="btn" download>Download PDF</a>
+    <a href="GameFolk_Report.pdf" class="btn" target="_blank" rel="noopener">Open in new tab</a>
+  </div>
+  <object data="GameFolk_Report.pdf" type="application/pdf" class="pdf-embed">
+    <p class="pdf-fallback">
+      Your browser doesn't support inline PDF previews.
+      Use the buttons above to download or open the report in a new tab.
+    </p>
+  </object>
+</section>
+
+<section>
+  <h2>Repository</h2>
+  <p>
+    Source code, schematic, and design files are available in the
+    <a href="https://github.com/YOUR_USERNAME/YOUR_REPO" target="_blank" rel="noopener">project repository</a>.
+  </p>
+</section>
+
+<footer>
+  <p>Team: [Name 1], [Name 2], [Name 3], [Name 4]</p>
+</footer>
+
+</body>
+</html>
