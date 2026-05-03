@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 ## Example Summary
 
 Empty project using DriverLib.
@@ -39,3 +40,7 @@ MSPM0 LaunchPad, please visit the [LP-MSPM0G3507 User's Guide](https://www.ti.co
 ## Example Usage
 
 Compile, load and run the example.
+=======
+# game-folk-startup
+Introducing the game folk, game away with all your folk while you're in need of some fun.
+>>>>>>> 43ceb37fe83f7a6c4aacf9cf4016274919b22742
