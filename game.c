@@ -111,6 +111,7 @@ static bool platformer_hits_rect(GameData *g, const PlatformerRect *rect)
 
 static void platformer_die(GameData *g)
 {
+    g->timer_active  = false;   // stop the clock on death
     g->state = GAME_STATE_GAMEOVER;
     g->platformer_won = false;
     g->blink_timer = 0;
@@ -119,6 +120,8 @@ static void platformer_die(GameData *g)
 
 static void platformer_win(GameData *g)
 {
+    g->timer_active    = false;          // stop the clock
+    g->run_ticks_final = g->run_ticks;   // freeze the final time
     g->state = GAME_STATE_GAMEOVER;
     g->platformer_won = true;
     g->blink_timer = 0;
@@ -531,6 +534,11 @@ void platformer_init(GameData *g)
     g->state = GAME_STATE_TITLE;
     g->blink_timer = 0;
     g->blink_on = true;
+
+    // Speedrun timer — cleared until the run actually starts
+    g->run_ticks       = 0;
+    g->run_ticks_final = 0;
+    g->timer_active    = false;
 }
 
 void platformer_tick(GameData *g, bool left, bool right, bool jump)
@@ -544,12 +552,29 @@ void platformer_tick(GameData *g, bool left, bool right, bool jump)
             g->blink_on = !g->blink_on;
         }
         if (jump) {
+            // Start the speedrun clock the moment the run begins
+            g->run_ticks    = 0;
+            g->timer_active = true;
             g->state = GAME_STATE_PLAYING;
         }
         break;
 
     case GAME_STATE_PLAYING:
     {
+        // ── Speedrun clock ────────────────────────────────────────────────────
+        // Increment every game tick. To use the RTC peripheral instead, replace
+        // this block with an elapsed-time read:
+        //
+        //   uint32_t now_sec = DL_RTC_getCalendarSeconds(RTC);
+        //   uint32_t now_sub = DL_RTC_getCalendarSubseconds(RTC); // 1/256 s
+        //   g->run_ticks = (now_sec - g->rtc_start_sec) * PLAT_TICKS_PER_SEC
+        //                + (now_sub * PLAT_TICKS_PER_SEC) / 256u;
+        //
+        // For the tick-counter approach (no extra hardware needed):
+        if (g->timer_active) {
+            g->run_ticks++;
+        }
+
         int16_t old_y = g->player_y;
         int16_t prev_bottom;
         int16_t new_bottom;
@@ -731,6 +756,27 @@ static void platformer_draw_level(GameData *g)
     draw_world_rect(g, PLAT_GOAL_X + 2, 30, 12, 7, 1);
 }
 
+// ── Speedrun timer formatter ──────────────────────────────────────────────────
+// Produces "M:SS.tt" (minutes, seconds, centiseconds) into buf[9].
+// Uses PLAT_TICKS_PER_SEC to convert raw ticks to real time.
+static void format_run_time(char *buf, uint32_t ticks)
+{
+    // Convert ticks → centiseconds
+    uint32_t cs   = (ticks * 100u) / PLAT_TICKS_PER_SEC;
+    uint32_t mins = cs / 6000u;
+    uint32_t secs = (cs % 6000u) / 100u;
+    uint32_t cent = cs % 100u;
+
+    buf[0] = '0' + (char)(mins % 10u);
+    buf[1] = ':';
+    buf[2] = '0' + (char)(secs / 10u);
+    buf[3] = '0' + (char)(secs % 10u);
+    buf[4] = '.';
+    buf[5] = '0' + (char)(cent / 10u);
+    buf[6] = '0' + (char)(cent % 10u);
+    buf[7] = '\0';
+}
+
 void platformer_render(GameData *g)
 {
     OLED_Clear();
@@ -758,19 +804,34 @@ void platformer_render(GameData *g)
                       PLAT_PLAYER_W, PLAT_PLAYER_H, 1);
         OLED_DrawPixel(screen_x + 4, g->player_y + 2, 0);
 
-        OLED_DrawString(0, 0, "RUN", 1, 1);
+        // Live speedrun timer — top-right corner, format "M:SS.tt"
+        {
+            char tbuf[8];
+            format_run_time(tbuf, g->run_ticks);
+            // 7 chars × 6px = 42px wide; right-align at x=86 so it ends at 128
+            OLED_DrawString(86, 0, tbuf, 1, 1);
+        }
         break;
     }
 
     case GAME_STATE_GAMEOVER:
         if (g->platformer_won) {
-            OLED_DrawString(16, 10, "YOU WIN", 1, 2);
+            OLED_DrawString(16, 4, "YOU WIN!", 1, 2);
+
+            // Show the final speedrun time prominently
+            {
+                char tbuf[8];
+                format_run_time(tbuf, g->run_ticks_final);
+                OLED_DrawString(19, 26, "TIME:", 1, 1);
+                // Centre the 7-char time string (42px) → x = (128-42)/2 = 43
+                OLED_DrawString(43, 36, tbuf, 1, 1);
+            }
         } else {
             OLED_DrawString(12, 10, "YOU DIED", 1, 2);
         }
-        OLED_DrawString(16, 36, "A RETURNS MENU", 1, 1);
+        OLED_DrawString(16, 48, "A RETURNS MENU", 1, 1);
         if (g->blink_on) {
-            OLED_DrawString(43, 52, "PRESS A", 1, 1);
+            OLED_DrawString(43, 56, "PRESS A", 1, 1);
         }
         break;
     }

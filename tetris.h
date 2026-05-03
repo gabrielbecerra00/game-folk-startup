@@ -66,7 +66,7 @@ typedef struct {
     bool     prev_drop;
 
     uint8_t  flash_timer;
-    uint16_t flash_rows;
+    uint32_t flash_rows;   // needs 20 bits (TET_ROWS=20), uint16_t was truncating rows 16-19
     bool     flashing;
 } TetrisData;
 

@@ -13,6 +13,7 @@ const GPIO   = scripting.addModule("/ti/driverlib/GPIO", {}, false);
 const GPIO1  = GPIO.addInstance();
 const GPIO2  = GPIO.addInstance();
 const GPIO3  = GPIO.addInstance();
+const RTC    = scripting.addModule("/ti/driverlib/RTC");
 const SPI    = scripting.addModule("/ti/driverlib/SPI", {}, false);
 const SPI1   = SPI.addInstance();
 const SYSCTL = scripting.addModule("/ti/driverlib/SYSCTL");
@@ -107,6 +108,8 @@ GPIO3.associatedPins[0].assignedPort        = "PORTA";
 GPIO3.associatedPins[0].assignedPortSegment = "Upper";
 GPIO3.associatedPins[0].assignedPin         = "24";
 
+RTC.enableClock = true;
+
 SPI1.$name                      = "SPI_0";
 SPI1.chipSelect                 = [];
 SPI1.frameFormat                = "MOTO3";
@@ -140,6 +143,7 @@ GPIO2.associatedPins[1].pin.$suggestSolution = "PA13";
 GPIO2.associatedPins[2].pin.$suggestSolution = "PA14";
 GPIO2.associatedPins[3].pin.$suggestSolution = "PA15";
 GPIO3.associatedPins[0].pin.$suggestSolution = "PA24";
+RTC.peripheral.$suggestSolution              = "RTC";
 SPI1.peripheral.$suggestSolution             = "SPI1";
 SYSCTL.peripheral.$suggestSolution           = "SYSCTL";
 TIMER1.peripheral.$suggestSolution           = "TIMA0";

@@ -55,6 +55,7 @@ SYSCONFIG_WEAK void SYSCFG_DL_init(void)
     SYSCFG_DL_SYSCTL_init();
     SYSCFG_DL_TIMER_0_init();
     SYSCFG_DL_SPI_0_init();
+    SYSCFG_DL_RTC_init();
     /* Ensure backup structures have no valid state */
 	gTIMER_0Backup.backupRdy 	= false;
 	gSPI_0Backup.backupRdy 	= false;
@@ -91,11 +92,13 @@ SYSCONFIG_WEAK void SYSCFG_DL_initPower(void)
     DL_GPIO_reset(GPIOB);
     DL_TimerA_reset(TIMER_0_INST);
     DL_SPI_reset(SPI_0_INST);
+    DL_RTC_reset(RTC);
 
     DL_GPIO_enablePower(GPIOA);
     DL_GPIO_enablePower(GPIOB);
     DL_TimerA_enablePower(TIMER_0_INST);
     DL_SPI_enablePower(SPI_0_INST);
+    DL_RTC_enablePower(RTC);
     delay_cycles(POWER_STARTUP_DELAY);
 }
 
@@ -246,5 +249,26 @@ SYSCONFIG_WEAK void SYSCFG_DL_SPI_0_init(void) {
 
     /* Enable module */
     DL_SPI_enable(SPI_0_INST);
+}
+
+static const DL_RTC_Calendar gRTCCalendarConfig = {
+		.seconds    = 0,   /* Seconds = 0 */
+		.minutes    = 0,   /* Minute = 0 */
+		.hours      = 0,   /* Hour = 0 */
+		.dayOfWeek  = 0,    /* Day of week = 0 (Sunday) */
+		.dayOfMonth = 1,    /* Day of month = 1*/
+		.month      = 1,    /* Month = 1 (January) */
+		.year       = 2022, /* Year = 2022 */
+};
+
+
+
+
+SYSCONFIG_WEAK void SYSCFG_DL_RTC_init(void)
+{
+	/* Initialize RTC Calendar */
+	DL_RTC_initCalendar(RTC , gRTCCalendarConfig, DL_RTC_FORMAT_BINARY);
+
+	DL_RTC_enableClockControl(RTC);
 }
 

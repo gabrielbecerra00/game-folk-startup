@@ -152,6 +152,9 @@ extern "C" {
 #define BUTTONS_BTN8_IOMUX                                       (IOMUX_PINCM40)
 
 
+
+
+
 /* clang-format on */
 
 void SYSCFG_DL_init(void);
@@ -161,6 +164,7 @@ void SYSCFG_DL_SYSCTL_init(void);
 void SYSCFG_DL_TIMER_0_init(void);
 void SYSCFG_DL_SPI_0_init(void);
 
+void SYSCFG_DL_RTC_init(void);
 
 bool SYSCFG_DL_saveConfiguration(void);
 bool SYSCFG_DL_restoreConfiguration(void);
