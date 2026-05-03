@@ -25,6 +25,7 @@ static int16_t     splash_offset      = 128;
 static int16_t     v1_offset          = 128;
 static uint8_t     splash_blink_timer = 0;
 static bool        splash_blink_on    = false;
+static bool tetris_failing = false;
 
 static void menu_init(MenuState *menu)
 {
@@ -191,9 +192,10 @@ int main(void)
                         game.app_state = APP_STATE_PLATFORMER;
                         break;
                     case MENU_ITEM_TETRIS:
-                        tetris_init(&tetris);
-                        game.app_state = APP_STATE_TETRIS;
-                        break;
+                    tetris_init(&tetris);
+                    tetris_failing = false;
+                    game.app_state = APP_STATE_TETRIS;
+                    break;
                     case MENU_ITEM_BUTTON_TEST:
                         game.app_state = APP_STATE_BUTTON_TEST;
                         break;
@@ -251,10 +253,33 @@ int main(void)
                             buttons.down,
                             a_pressed,
                             buttons.b);
+
+                // Dispatch SFX
+                if (tetris.sfx != TET_SFX_NONE) {
+                    dispatch_tetris_sfx(tetris.sfx);
+                    if (tetris.sfx == TET_SFX_GAMEOVER)
+                        tetris_failing = true;
+                    tetris.sfx = TET_SFX_NONE;
+                }
+
+                // Hold on playing state until fail jingle finishes
+                if (tetris_failing) {
+                    if (jingle_finished()) {
+                        tetris_failing = false;
+                        // Now let gameover screen show
+                    } else {
+                        // Keep rendering playing state during jingle
+                        tetris_render(&tetris);
+                        break;
+                    }
+                }
+
                 tetris_render(&tetris);
-                if (tetris.state == TET_STATE_GAMEOVER && a_pressed) {
+
+                if (tetris.state == TET_STATE_GAMEOVER && a_pressed && !tetris_failing) {
                     game.app_state = APP_STATE_MENU;
                     menu_init(&game.menu);
+                    tetris_init(&tetris);
                 }
                 break;
             }

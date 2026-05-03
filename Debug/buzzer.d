@@ -84,7 +84,7 @@ buzzer.o: ../buzzer.c ../buzzer.h \
  /Users/macs/ti/mspm0_sdk_2_10_00_04/source/ti/driverlib/dl_wwdt.h \
  /Users/macs/ti/mspm0_sdk_2_10_00_04/source/ti/driverlib/m0p/dl_interrupt.h \
  /Users/macs/ti/mspm0_sdk_2_10_00_04/source/ti/driverlib/m0p/dl_systick.h \
- ../game.h ../oled.h
+ ../game.h ../oled.h ../tetris.h
 ../buzzer.h:
 ti_msp_dl_config.h:
 /Users/macs/ti/mspm0_sdk_2_10_00_04/source/ti/devices/msp/msp.h:
@@ -171,3 +171,4 @@ ti_msp_dl_config.h:
 /Users/macs/ti/mspm0_sdk_2_10_00_04/source/ti/driverlib/m0p/dl_systick.h:
 ../game.h:
 ../oled.h:
+../tetris.h:
