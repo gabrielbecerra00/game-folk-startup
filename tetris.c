@@ -107,6 +107,7 @@ static void spawn_piece(TetrisData *t)
         t->state       = TET_STATE_GAMEOVER;
         t->blink_timer = 0;
         t->blink_on    = true;
+        t->sfx         = TET_SFX_GAMEOVER;   // ← add
     }
 }
 
@@ -114,16 +115,18 @@ static void do_lock(TetrisData *t)
 {
     lock_piece(t);
 
-    uint16_t full = (1u << TET_COLS) - 1u;
+    uint32_t full = (1u << TET_COLS) - 1u;
     t->flash_rows = 0;
     for (uint8_t r = 0; r < TET_ROWS; r++)
-        if (t->board[r] == full)
-            t->flash_rows |= (1u << r);
+        if (t->board[r] == (uint16_t)full)
+            t->flash_rows |= (1ul << r);
 
     if (t->flash_rows) {
         t->flashing    = true;
         t->flash_timer = 8;
+        t->sfx = TET_SFX_CLEAR;   // ← line clear sound
     } else {
+        t->sfx = TET_SFX_LOCK;    // ← drop without clear
         spawn_piece(t);
     }
 }
@@ -201,6 +204,7 @@ void tetris_tick(TetrisData *t, bool left, bool right,
             if (!collides(t, t->piece, t->rotation,
                           t->piece_x - 1, t->piece_y))
                 t->piece_x--;
+                t->sfx = TET_SFX_MOVE;
         }
 
         // Move right
@@ -208,6 +212,7 @@ void tetris_tick(TetrisData *t, bool left, bool right,
             if (!collides(t, t->piece, t->rotation,
                           t->piece_x + 1, t->piece_y))
                 t->piece_x++;
+                t->sfx = TET_SFX_MOVE;
         }
 
         // Rotate with wall kick
@@ -215,14 +220,17 @@ void tetris_tick(TetrisData *t, bool left, bool right,
             uint8_t new_rot = (t->rotation + 1u) % 4u;
             if (!collides(t, t->piece, new_rot, t->piece_x, t->piece_y)) {
                 t->rotation = new_rot;
+                t->sfx = TET_SFX_ROTATE;
             } else if (!collides(t, t->piece, new_rot,
                                  t->piece_x - 1, t->piece_y)) {
                 t->piece_x--;
                 t->rotation = new_rot;
+                t->sfx = TET_SFX_ROTATE;
             } else if (!collides(t, t->piece, new_rot,
                                  t->piece_x + 1, t->piece_y)) {
                 t->piece_x++;
                 t->rotation = new_rot;
+                t->sfx = TET_SFX_ROTATE;
             }
         }
 
@@ -273,7 +281,7 @@ static void draw_board(const TetrisData *t)
 {
     for (uint8_t r = 0; r < TET_ROWS; r++) {
         bool flash_this = t->flashing &&
-                          (t->flash_rows & (1u << r)) &&
+                          (t->flash_rows & (1ul << r)) &&
                           (t->flash_timer & 1u);
         for (uint8_t c = 0; c < TET_COLS; c++) {
             if (t->board[r] & (1u << c))

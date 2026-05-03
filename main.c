@@ -25,6 +25,7 @@ static int16_t     splash_offset      = 128;
 static int16_t     v1_offset          = 128;
 static uint8_t     splash_blink_timer = 0;
 static bool        splash_blink_on    = false;
+static uint8_t     p2_start_grace     = 0;   // ticks to suppress P2 movement after A press
 
 static void menu_init(MenuState *menu)
 {
@@ -185,6 +186,7 @@ int main(void)
                     case MENU_ITEM_2P_PONG:
                         game2p_init(&game);
                         game.app_state = APP_STATE_2P_PONG;
+                        p2_start_grace = 20;   // suppress P2 inputs during held A from menu
                         break;
                     case MENU_ITEM_PLATFORMER:
                         platformer_init(&game);
@@ -218,8 +220,17 @@ int main(void)
                     game.app_state = APP_STATE_MENU;
                     menu_init(&game.menu);
                 } else {
+                    // Only suppress P2 inputs during the title→playing transition,
+                    // not during actual gameplay
+                    if (a_pressed && game.state == GAME_STATE_TITLE)
+                        p2_start_grace = 20;
+                    if (p2_start_grace > 0) p2_start_grace--;
+
+                    bool p2_up   = (p2_start_grace == 0) && buttons.a;
+                    bool p2_down = (p2_start_grace == 0) && buttons.c;
+
                     game2p_tick(&game, buttons.up, buttons.down,
-                                buttons.d, buttons.b, a_pressed);
+                                p2_up, p2_down, a_pressed);
                     dispatch_game_sfx(game.sfx);
                     game.sfx = SFX_NONE;
                     game2p_render(&game);
@@ -246,17 +257,19 @@ int main(void)
                 break;
 
             case APP_STATE_TETRIS:
-                tetris_tick(&tetris,
-                            buttons.left, buttons.right,
-                            buttons.down,
-                            a_pressed,
-                            buttons.b);
-                tetris_render(&tetris);
-                if (tetris.state == TET_STATE_GAMEOVER && a_pressed) {
-                    game.app_state = APP_STATE_MENU;
-                    menu_init(&game.menu);
-                }
-                break;
+    tetris_tick(&tetris,
+                buttons.left, buttons.right,
+                buttons.down,
+                a_pressed,
+                buttons.b);
+    dispatch_tetris_sfx(tetris.sfx);   // ← play sound effect
+    tetris.sfx = TET_SFX_NONE;         // ← clear after dispatch
+    tetris_render(&tetris);
+    if (tetris.state == TET_STATE_GAMEOVER && a_pressed) {
+        game.app_state = APP_STATE_MENU;
+        menu_init(&game.menu);
+    }
+    break;
             }
 
             previous_buttons = buttons;

@@ -33,6 +33,28 @@ static const BuzzerNote gameover_jingle[] = {
 };
 #define GAMEOVER_JINGLE_LENGTH  (sizeof(gameover_jingle) / sizeof(gameover_jingle[0]))
 
+static const BuzzerNote tetris_clear_jingle[] = {
+    {NOTE_GS5, 80},
+    {NOTE_REST, 20},
+    {NOTE_AS5, 120},
+};
+#define TETRIS_CLEAR_LENGTH (sizeof(tetris_clear_jingle) / sizeof(tetris_clear_jingle[0]))
+
+static const BuzzerNote tetris_fail_jingle[] = {
+    {NOTE_F5,   80},
+    {NOTE_REST, 30},
+    {NOTE_F5,   80},
+    {NOTE_REST, 30},
+    {NOTE_F5,   80},
+    {NOTE_REST, 30},
+};
+#define TETRIS_FAIL_LENGTH (sizeof(tetris_fail_jingle) / sizeof(tetris_fail_jingle[0]))
+
+static JingleType  jingle_type    = JINGLE_GAMEOVER;
+static bool        jingle_done    = false;
+
+
+
 // ── Music state ──────────────────────────────────────────────────────────────
 static volatile bool     buzzer_music_enabled       = false;
 static volatile uint8_t  buzzer_note_index          = 0;
@@ -168,12 +190,55 @@ void sfx_play(uint16_t frequency_hz, uint16_t duration_ms)
     sfx_pin_on              = false;
 }
 
-void jingle_start(void)
+void dispatch_game_sfx(GameSFX sfx)
 {
+    switch (sfx) {
+    case SFX_PADDLE_HIT:  sfx_play(NOTE_B5, 40);              break;
+    case SFX_WALL_HIT:    sfx_play(NOTE_B5, 40);              break;
+    case SFX_SCORE:       sfx_play(NOTE_B4, 120);             break;
+    case SFX_GAMEOVER:    jingle_start(JINGLE_GAMEOVER);      break;
+    default:              break;
+    }
+}
+
+void dispatch_tetris_sfx(TetrisSFX sfx)
+{
+    switch (sfx) {
+    case TET_SFX_MOVE:
+        sfx_play(NOTE_A4, 30);
+        break;
+    case TET_SFX_ROTATE:
+        sfx_play(NOTE_D5, 30);
+        break;
+    case TET_SFX_LOCK:
+        sfx_play(NOTE_CS5, 60);
+        break;
+    case TET_SFX_CLEAR:
+        jingle_start(JINGLE_TETRIS_CLEAR);
+        break;
+    case TET_SFX_GAMEOVER:
+        jingle_start(JINGLE_TETRIS_FAIL);
+        break;
+    default:
+        break;
+    }
+}
+
+void jingle_start(JingleType type)
+{
+    jingle_type    = type;
     jingle_index   = 0;
     jingle_playing = true;
-    sfx_play(gameover_jingle[0].frequency_hz,
-              gameover_jingle[0].duration_ms);
+    jingle_done    = false;
+    const BuzzerNote *song = (type == JINGLE_GAMEOVER)    ? gameover_jingle :
+                             (type == JINGLE_TETRIS_CLEAR) ? tetris_clear_jingle :
+                                                             tetris_fail_jingle;
+    sfx_play(song[0].frequency_hz, song[0].duration_ms);
+}
+
+bool jingle_finished(void)
+{
+    return jingle_done;
 }
 
 void jingle_tick(void)
@@ -181,22 +246,26 @@ void jingle_tick(void)
     if (!jingle_playing) return;
     if (sfx_ticks_remaining > 0) return;
 
+    const BuzzerNote *song;
+    uint8_t length;
+
+    if (jingle_type == JINGLE_GAMEOVER) {
+        song   = gameover_jingle;
+        length = GAMEOVER_JINGLE_LENGTH;
+    } else if (jingle_type == JINGLE_TETRIS_CLEAR) {
+        song   = tetris_clear_jingle;
+        length = TETRIS_CLEAR_LENGTH;
+    } else {
+        song   = tetris_fail_jingle;
+        length = TETRIS_FAIL_LENGTH;
+    }
+
     jingle_index++;
-    if (jingle_index >= GAMEOVER_JINGLE_LENGTH) {
+    if (jingle_index >= length) {
         jingle_playing = false;
+        jingle_done    = true;
         return;
     }
-    sfx_play(gameover_jingle[jingle_index].frequency_hz,
-              gameover_jingle[jingle_index].duration_ms);
-}
-
-void dispatch_game_sfx(GameSFX sfx)
-{
-    switch (sfx) {
-    case SFX_PADDLE_HIT:  sfx_play(NOTE_B5, 40);   break;
-    case SFX_WALL_HIT:    sfx_play(NOTE_B5, 40);   break;
-    case SFX_SCORE:       sfx_play(NOTE_B4, 120);  break;
-    case SFX_GAMEOVER:    jingle_start();           break;
-    default:              break;
-    }
+    sfx_play(song[jingle_index].frequency_hz,
+              song[jingle_index].duration_ms);
 }

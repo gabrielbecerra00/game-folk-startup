@@ -31,6 +31,15 @@ typedef enum {
     TET_STATE_GAMEOVER
 } TetrisState;
 
+typedef enum {
+    TET_SFX_NONE,
+    TET_SFX_MOVE,
+    TET_SFX_ROTATE,
+    TET_SFX_LOCK,
+    TET_SFX_CLEAR,
+    TET_SFX_GAMEOVER
+} TetrisSFX;
+
 typedef struct {
     TetrisState state;
 
@@ -66,8 +75,9 @@ typedef struct {
     bool     prev_drop;
 
     uint8_t  flash_timer;
-    uint16_t flash_rows;
+    uint32_t flash_rows;
     bool     flashing;
+    TetrisSFX sfx;
 } TetrisData;
 
 void tetris_init(TetrisData *t);
