@@ -1,0 +1,18 @@
+# Debug build directory
+Debug/
+
+# Clang-related cache
+.clangd/
+
+# Common IDE files
+.vscode/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Build artifacts
+*.o
+*.d
+*.a
+*.elf
