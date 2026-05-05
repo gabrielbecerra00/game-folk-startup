@@ -1,0 +1,664 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GameFolk Startup</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg:       #07070f;
+    --surface:  #0f0f22;
+    --border:   #2a2a52;
+    --border-hi:#5a5aee;
+    --text:     #d0d0e8;
+    --muted:    #6868a0;
+    --link:     #7eaaff;
+    --gold:     #ffd700;
+    --green:    #39d353;
+    --cyan:     #00e5ff;
+    --red:      #ff4455;
+    --purple:   #cc66ff;
+    --orange:   #ff8844;
+    --px: 'Press Start 2P', monospace;
+  }
+
+  html { background: var(--bg); }
+
+  body {
+    font-family: 'Press Start 2P', monospace;
+    color: var(--text);
+    background: transparent;
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 2rem 1.5rem 5rem;
+    line-height: 2.2;
+    font-size: 10px;
+    position: relative;
+  }
+
+  /* ── BACKGROUND CANVAS ──────────────────────────────── */
+  #bg-canvas {
+    position: fixed;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    z-index: -1;
+    pointer-events: none;
+  }
+
+  /* ── CRT SCANLINES ──────────────────────────────────── */
+  #crt {
+    position: fixed;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    z-index: 2;
+    pointer-events: none;
+    background: repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 2px,
+      rgba(0,0,0,0.07) 2px,
+      rgba(0,0,0,0.07) 4px
+    );
+    box-shadow: inset 0 0 140px rgba(0,0,0,0.55);
+  }
+
+  /* ── PIXEL PANEL ────────────────────────────────────── */
+  .px-panel {
+    background: var(--surface);
+    border: 2px solid var(--border);
+    width: 100%;
+    box-shadow:
+      4px 0 0 var(--border), -4px 0 0 var(--border),
+      0 4px 0 var(--border),  0 -4px 0 var(--border);
+    padding: 1.4rem 1.5rem;
+    margin: 0.8rem 0;
+  }
+
+  /* ── PIXEL DIVIDER ──────────────────────────────────── */
+  .px-div {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin: 2.2rem 0 1rem;
+    font-family: var(--px);
+    font-size: 0.6rem;
+    color: var(--border-hi);
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+  }
+  .px-div::before, .px-div::after {
+    content: '';
+    flex: 1;
+    height: 2px;
+  }
+  .px-div::before { background: linear-gradient(to right, transparent, var(--border-hi)); }
+  .px-div::after  { background: linear-gradient(to left,  transparent, var(--border-hi)); }
+
+  /* ── HEADER ─────────────────────────────────────────── */
+  header {
+    text-align: center;
+    padding: 3.5rem 0 2rem;
+  }
+
+  #title-text {
+    font-family: var(--px);
+    font-size: clamp(1rem, 4.5vw, 2rem);
+    color: var(--gold);
+    text-shadow: 2px 2px 0 #a07800,
+                 0 0 24px rgba(255,215,0,0.45),
+                 0 0 60px rgba(255,215,0,0.15);
+    letter-spacing: 0.05em;
+    line-height: 1.5;
+    display: block;
+    min-height: 1.6em;
+  }
+
+  .cursor {
+    display: inline-block;
+    width: 14px;
+    height: 1.1em;
+    background: var(--gold);
+    margin-left: 3px;
+    vertical-align: text-bottom;
+    animation: blink 0.9s step-end infinite;
+  }
+  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0} }
+
+  .startup-badge {
+    display: inline-block;
+    font-family: var(--px);
+    font-size: 0.6rem;
+    color: var(--green);
+    border: 2px solid var(--green);
+    padding: 0.4rem 0.9rem;
+    margin-bottom: 1.4rem;
+    letter-spacing: 0.1em;
+    box-shadow: 2px 2px 0 #1a6630;
+    animation: badgeglow 2s ease-in-out infinite;
+  }
+  @keyframes badgeglow {
+    0%,100% { filter: brightness(0.8); }
+    50%     { filter: brightness(1.3); }
+  }
+
+  .subtitle-px {
+    font-family: var(--px);
+    font-size: clamp(0.6rem, 1.6vw, 0.75rem);
+    color: var(--text);
+    text-shadow: 0 0 10px rgba(255,215,0,0.7), 0 0 30px rgba(255,215,0,0.3);
+    line-height: 2.2;
+    margin-top: 1rem;
+    letter-spacing: 0.05em;
+  }
+
+  .tagline-px {
+    font-family: var(--px);
+    font-size: clamp(0.55rem, 1.4vw, 0.68rem);
+    color: var(--border-hi);
+    text-shadow: 0 0 10px rgba(90,90,238,0.6), 0 0 25px rgba(90,90,238,0.25);
+    line-height: 2;
+    margin-top: 0.5rem;
+    letter-spacing: 0.05em;
+    min-height: 1.8em;
+    transition: opacity 0.35s ease;
+  }
+
+  .meta-px {
+    font-family: var(--px);
+    font-size: 0.6rem;
+    color: var(--muted);
+    margin-top: 0.8rem;
+    letter-spacing: 0.07em;
+  }
+
+  .investor-bar {
+    margin-top: 1.2rem;
+    font-family: var(--px);
+    font-size: 0.48rem;
+    color: var(--muted);
+    letter-spacing: 0.08em;
+    line-height: 2.4;
+  }
+  .inv-lbl { color: var(--gold); }
+
+  /* ── SCORE ROW ──────────────────────────────────────── */
+  .score-row {
+    display: flex;
+    gap: 0;
+    flex-wrap: wrap;
+    margin: 1.5rem 0 0.5rem;
+    border: 2px solid var(--border);
+    box-shadow: 4px 0 0 var(--border), -4px 0 0 var(--border),
+                0 4px 0 var(--border),  0 -4px 0 var(--border);
+  }
+  .score-item {
+    flex: 1;
+    min-width: 100px;
+    padding: 0.9rem 1rem;
+    border-right: 2px solid var(--border);
+    text-align: center;
+  }
+  .score-item:last-child { border-right: none; }
+  .score-item .lbl {
+    font-family: var(--px);
+    font-size: 0.42rem;
+    color: var(--muted);
+    letter-spacing: 0.12em;
+    display: block;
+    text-transform: uppercase;
+  }
+  .score-item .val {
+    font-family: var(--px);
+    font-size: clamp(0.55rem, 2vw, 0.9rem);
+    color: var(--gold);
+    text-shadow: 0 0 12px rgba(255,215,0,0.35);
+    display: block;
+    margin-top: 0.4rem;
+  }
+
+  /* ── SECTION HEADINGS ───────────────────────────────── */
+  h2 {
+    font-family: var(--px);
+    font-size: clamp(0.55rem, 1.8vw, 0.8rem);
+    color: var(--green);
+    text-shadow: 0 0 10px rgba(57,211,83,0.4);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    margin-bottom: 1rem;
+  }
+  h2::before { content: '▶ '; color: var(--gold); }
+
+  p { margin: 0.75rem 0; color: var(--text); }
+
+  a {
+    color: var(--link);
+    text-decoration: none;
+    border-bottom: 1px dashed var(--link);
+    transition: color 0.15s, text-shadow 0.15s, border-color 0.15s;
+  }
+  a:hover {
+    color: var(--cyan);
+    text-shadow: 0 0 8px rgba(0,229,255,0.5);
+    border-bottom: 1px solid var(--cyan);
+  }
+
+  ul { margin: 0.8rem 0; padding-left: 1.6rem; list-style: none; }
+  li { margin: 0.5rem 0; position: relative; }
+  li::before {
+    content: '►';
+    position: absolute;
+    left: -1.3rem;
+    color: var(--purple);
+    font-size: 1em;
+    top: 0.1em;
+  }
+  li strong { color: var(--gold); }
+
+  /* ── GAME TAGS ──────────────────────────────────────── */
+  .game-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.6rem;
+    /*justify-content: space-between;*/
+    margin-bottom: 1rem;
+  }
+  .gtag {
+    font-family: var(--px);
+    font-size: 0.48rem;
+    padding: 0.4rem 0.75rem;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    border: 2px solid;
+    color: var(--gold);
+    /* flex: 1;
+    text-align: center; */
+  }
+  /* .gtag-w { color:#e8e8ff; border-color:#e8e8ff; box-shadow:2px 2px 0 #555588; }
+  .gtag-o { color:var(--orange); border-color:var(--orange); box-shadow:2px 2px 0 #883300; }
+  .gtag-g { color:var(--green);  border-color:var(--green);  box-shadow:2px 2px 0 #1a6630; }
+  .gtag-p { color:var(--purple); border-color:var(--purple); box-shadow:2px 2px 0 #5a1a88; } */
+
+  /* ── SPEC GRID ──────────────────────────────────────── */
+  .spec-grid {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 0.5rem 1.5rem;
+    font-size: 0.9rem;
+  }
+  .sk {
+    font-family: var(--px);
+    font-size: 0.47rem;
+    color: var(--muted);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    white-space: nowrap;
+    padding-top: 0.2rem;
+  }
+  .sv {
+    color: var(--text);
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 0.3rem;
+  }
+
+  /* ── VIDEO ──────────────────────────────────────────── */
+  .video-wrap {
+    position: relative;
+    width: 100%;
+    padding-bottom: 56.25%;
+    height: 0;
+    background: #000;
+    border: 2px solid var(--border-hi);
+    box-shadow: 0 0 24px rgba(90,90,238,0.25), 4px 4px 0 var(--border);
+  }
+  .video-wrap iframe {
+    position: absolute;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    border: 0;
+  }
+
+  /* ── PCB ────────────────────────────────────────────── */
+  .no-crt { position: relative; z-index: 3; }
+  .pcb-placeholder {
+    width: 100%;
+    aspect-ratio: 4/3;
+    border: 2px dashed var(--border-hi);
+    background: var(--surface);
+    color: var(--muted);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: var(--px);
+    font-size: 0.55rem;
+    text-align: center;
+    padding: 1.5rem;
+    line-height: 2.2;
+  }
+  .pcb-image {
+    width: 100%;
+    border: 2px solid var(--border-hi);
+    box-shadow: 0 0 24px rgba(90,90,238,0.25);
+    display: block;
+    image-rendering: pixelated;
+  }
+
+  /* ── BUTTONS ────────────────────────────────────────── */
+  .pdf-actions { display: flex; gap: 1rem; flex-wrap: wrap; margin: 1rem 0; }
+  .btn {
+    display: inline-block;
+    font-family: var(--px);
+    font-size: 0.65rem;
+    letter-spacing: 0.08em;
+    padding: 1rem 1.2rem;
+    text-transform: uppercase;
+    text-decoration: none;
+    color: var(--gold);
+    background: var(--surface);
+    border: 2px solid var(--gold);
+    box-shadow: 4px 4px 0 #7a6500;
+    transition: transform 0.1s, box-shadow 0.1s;
+    cursor: pointer;
+    flex: 1;
+    text-align: center;
+  }
+  .btn:hover {
+    transform: translate(2px, 2px);
+    box-shadow: 2px 2px 0 #7a6500;
+    color: var(--gold);
+    text-shadow: 0 0 8px rgba(255,215,0,0.7);
+    border-color: var(--gold);
+  }
+  .btn:active { transform: translate(4px,4px); box-shadow: none; }
+
+  /* ── PDF EMBED ──────────────────────────────────────── */
+  .pdf-embed {
+    width: 100%;
+    height: 720px;
+    border: 2px solid var(--border);
+    background: var(--surface);
+    margin-top: 0.5rem;
+  }
+  .pdf-fallback { color: var(--muted); font-size: 0.9rem; font-style: italic; }
+
+  /* ── FOOTER ─────────────────────────────────────────── */
+  footer {
+    margin-top: 3rem;
+    text-align: center;
+    font-family: var(--px);
+    font-size: 0.48rem;
+    color: var(--muted);
+    letter-spacing: 0.1em;
+    line-height: 2.8;
+    border-top: 2px solid var(--border);
+    padding-top: 1.5rem;
+  }
+  .heart {
+    display: inline-block;
+    color: var(--red);
+    animation: hb 1.4s ease-in-out infinite;
+  }
+  @keyframes hb { 0%,100%{transform:scale(1)} 50%{transform:scale(1.35)} }
+
+  /* ── SCROLL REVEAL ──────────────────────────────────── */
+  .reveal {
+    opacity: 0;
+    transform: translateY(18px);
+    transition: opacity 0.45s ease, transform 0.45s ease;
+  }
+  .reveal.visible {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  @media (max-width: 600px) {
+    body { padding: 1rem 1rem 3.5rem; font-size: 15px; }
+    .pdf-embed { height: 480px; }
+    .score-item { min-width: 80px; }
+  }
+</style>
+</head>
+<body>
+
+<canvas id="bg-canvas"></canvas>
+<div id="crt"></div>
+
+<header>
+  <span id="title-text"></span>
+  <p class="subtitle-px">A CUSTOM EMBEDDED HANDHELD GAME CONSOLE</p>
+  <p class="tagline-px" id="tagline">&nbsp;</p>
+  <p class="meta-px">ELEC 327 &middot; SPRING 2026 &middot; RICE UNIVERSITY</p>
+</header>
+
+<div class="score-row reveal">
+  <div class="score-item"><span class="lbl">Games</span><span class="val">04</span></div>
+  <div class="score-item"><span class="lbl">MCU</span><span class="val">MSPM0</span></div>
+  <div class="score-item"><span class="lbl">Display</span><span class="val">128&times;64</span></div>
+</div>
+
+<div class="px-div reveal">About</div>
+
+<section class="reveal">
+  <div class="px-panel">
+    <p>
+      GameFolk V1 is a self-contained handheld game console built on a custom PCB.
+      It runs on an MSPM0G3507 microcontroller driving a 128&times;64 OLED display,
+      has eight tactile buttons, and synthesizes audio through a piezo buzzer.
+      The whole system is powered by three AAA batteries through an onboard regulator,
+      so it runs independently of any debug hardware.
+    </p>
+    <p>
+      The project demonstrates custom PCB design, SPI communication, GPIO input
+      with internal pull-ups, software square-wave audio synthesis, and use of the
+      RTC peripheral as a wall-clock time source.
+    </p>
+  </div>
+</section>
+
+<div class="px-div reveal">Games</div>
+
+<section class="reveal">
+  <!-- <div class="game-tags">
+    <span class="gtag gtag-w">Pong</span>
+    <span class="gtag gtag-o">2P Pong</span>
+    <span class="gtag gtag-g">Platformer</span>
+    <span class="gtag gtag-p">Tetris</span> -->
+  <div class="px-panel">
+    <ul>
+      <li><span class="gtag gtag-w">Pong</span> single-player with position-dependent paddle deflection</li>
+      <li><span class="gtag gtag-o">2P Pong</span> two players on one device, first to 5 wins</li>
+      <li><span class="gtag gtag-g">Platformer</span> side-scrolling with speedrun timer driven by RTC</li>
+      <li><span class="gtag gtag-p">Tetris</span> all 7 tetrominoes, rotation, NES-style scoring</li>
+    </ul>
+  </div>
+</section>
+
+<div class="px-div reveal">Demo Video</div>
+
+<section class="reveal">
+  <div class="video-wrap">
+    <iframe
+      src="https://www.youtube.com/embed/gC-M8yv8BCI"
+      title="GameFolk V1 Demo"
+      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+      allowfullscreen></iframe>
+  </div>
+</section>
+
+<div class="px-div reveal">PCB</div>
+
+<section class="reveal no-crt">
+  <div class="pcb-placeholder">
+    <img src="pcb_schematic.png" alt="GameFolk V1 PCB" class="pcb-image">
+  </div>
+</section>
+
+<div class="px-div reveal">Written Report</div>
+
+<section class="reveal no-crt">
+  <div class="pdf-actions">
+    <a href="GameFolk_Report.pdf" class="btn" download>&darr; Download PDF</a>
+    <a href="GameFolk_Report.pdf" class="btn" target="_blank" rel="noopener">&#x2B06; Open in new tab</a>
+  </div>
+  <object data="GameFolk_Report.pdf" type="application/pdf" class="pdf-embed">
+    <p class="pdf-fallback">
+      Your browser doesn&rsquo;t support inline PDF previews.
+      Use the buttons above to download or open the report.
+    </p>
+  </object>
+</section>
+
+<div class="px-div reveal">Repository</div>
+
+<section class="reveal">
+  <div class="px-panel">
+    <p>
+      Source code, schematic, and design files are available in the
+      <a href="https://github.com/gabrielbecerra00/game-folk-startup" target="_blank" rel="noopener">project repository</a>.
+    </p>
+  </div>
+</section>
+
+<footer>
+  <p>TEAM: Gabriel Becerra &middot; Jordan Murray &middot; Cade Sellers &middot; Romanus Angina</p>
+<p>MADE WITH <span class="heart">&#x2665;</span> AND SOLDER</p>
+</footer>
+
+<script>
+// ── CANVAS BACKGROUND ─────────────────────────────────────────────
+const canvas = document.getElementById('bg-canvas');
+const ctx = canvas.getContext('2d');
+ctx.imageSmoothingEnabled = false;
+let W, H;
+
+function resize() {
+  W = canvas.width  = window.innerWidth;
+  H = canvas.height = window.innerHeight;
+}
+resize();
+window.addEventListener('resize', resize);
+
+// ── TETROMINO SHAPES ──────────────────────────────────────────────
+const TETROS = [
+  { cells: [[0,0],[1,0],[2,0],[3,0]], color: '#00e5ff' }, // I cyan
+  { cells: [[0,0],[1,0],[2,0],[1,1]], color: '#cc66ff' }, // T purple
+  { cells: [[0,0],[1,0],[0,1],[1,1]], color: '#ffd700' }, // O yellow
+  { cells: [[0,0],[0,1],[1,1],[2,1]], color: '#ff8844' }, // L orange
+  { cells: [[2,0],[0,1],[1,1],[2,1]], color: '#4488ff' }, // J blue
+  { cells: [[1,0],[2,0],[0,1],[1,1]], color: '#39d353' }, // S green
+  { cells: [[0,0],[1,0],[1,1],[2,1]], color: '#ff4455' }, // Z red
+];
+
+const PX = 9; // pixel block size
+
+const floaters = TETROS.map((t) => ({
+  cells: t.cells,
+  color: t.color,
+  x: Math.random(),
+  y: Math.random(),
+  vx: (Math.random() > 0.5 ? 1 : -1) * (0.00012 + Math.random() * 0.00018),
+  vy: (Math.random() > 0.5 ? 1 : -1) * (0.00008 + Math.random() * 0.00014),
+  alpha: 0.11 + Math.random() * 0.13,
+}));
+
+
+// ── DRAW HELPERS ──────────────────────────────────────────────────
+function drawBlock(cx, cy, color, alpha, cells) {
+  ctx.save();
+  ctx.globalAlpha = alpha;
+  for (const [gx, gy] of cells) {
+    const px = Math.floor(cx + gx * PX);
+    const py = Math.floor(cy + gy * PX);
+    ctx.fillStyle = color;
+    ctx.fillRect(px, py, PX - 1, PX - 1);
+    ctx.fillStyle = 'rgba(255,255,255,0.3)';
+    ctx.fillRect(px, py, PX - 1, 1);
+    ctx.fillRect(px, py, 1, PX - 1);
+    ctx.fillStyle = 'rgba(0,0,0,0.35)';
+    ctx.fillRect(px, py + PX - 2, PX - 1, 1);
+    ctx.fillRect(px + PX - 2, py, 1, PX - 1);
+  }
+  ctx.restore();
+}
+
+// ── ANIMATION LOOP ────────────────────────────────────────────────
+let t = 0;
+function frame() {
+  t += 0.016;
+  ctx.clearRect(0, 0, W, H);
+
+  // background
+  const g = ctx.createRadialGradient(W/2, H/2, 0, W/2, H/2, Math.max(W,H) * 0.85);
+  g.addColorStop(0, '#0e0e26');
+  g.addColorStop(1, '#07070f');
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, W, H);
+
+
+  // tetrominos
+  for (const f of floaters) {
+    f.x = (f.x + f.vx + 1) % 1;
+    f.y = (f.y + f.vy + 1) % 1;
+    drawBlock(f.x * W, f.y * H, f.color, f.alpha, f.cells);
+  }
+
+  requestAnimationFrame(frame);
+}
+frame();
+
+// ── TYPEWRITER TITLE ──────────────────────────────────────────────
+const TITLE   = 'GAMEFOLK V1';
+const titleEl = document.getElementById('title-text');
+let idx = 0;
+
+function typeNext() {
+  if (idx <= TITLE.length) {
+    titleEl.innerHTML = TITLE.slice(0, idx) + '<span class="cursor"></span>';
+    idx++;
+    setTimeout(typeNext, idx === 1 ? 500 : 90);
+  }
+}
+typeNext();
+
+// ── ROTATING STARTUP TAGLINES ─────────────────────────────────
+const TAGLINES = [
+  'DISRUPTING THE $0 EMBEDDED GAMING VERTICAL',
+  'MOVE FAST. BREAK SOLDER JOINTS.',
+  'POWERED BY CAFFEINE & 3\xD7AAA',
+  'AI-ADJACENT GAMING EXPERIENCE',
+  'PRE-REVENUE \xB7 POST-SOLDERING',
+  'BLOCKCHAIN-OPTIONAL',
+  'UNIQUE FEATURES (BUGS) MAY BE PRESENT',
+];
+
+const taglineEl = document.getElementById('tagline');
+let tagIdx = 0;
+
+function cycleTagline() {
+  taglineEl.style.opacity = '0';
+  setTimeout(() => {
+    taglineEl.textContent = TAGLINES[tagIdx % TAGLINES.length];
+    taglineEl.style.opacity = '1';
+    tagIdx++;
+  }, 350);
+}
+cycleTagline();
+setInterval(cycleTagline, 3200);
+
+// ── SCROLL REVEAL ─────────────────────────────────────────────────
+const observer = new IntersectionObserver((entries) => {
+  for (const e of entries) {
+    if (e.isIntersecting) {
+      e.target.classList.add('visible');
+      observer.unobserve(e.target);
+    }
+  }
+}, { threshold: 0.08 });
+
+document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
+</script>
+</body>
+</html>
