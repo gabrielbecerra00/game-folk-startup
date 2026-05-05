@@ -36,7 +36,7 @@
 #define PLAT_WORLD_W   360
 #define PLAT_GOAL_X    334
 
-// ── Speedrun timer ────────────────────────────────────────────────────────────
+// Speedrun timer
 // Set this to match the tick rate of TIMA0 (ticks per second).
 // e.g. if your timer period = 1/60 s  →  PLAT_TICKS_PER_SEC 60
 // If you use the RTC peripheral instead, see platformer_tick() for the
@@ -109,7 +109,7 @@ typedef struct {
     // Dead state timer (pause before respawn)
     uint8_t dead_timer;
 
-    // ── Speedrun timer (platformer) ───────────────────────────────────────────
+    // Speedrun timer (platformer)
     uint32_t run_ticks;        // counts up every game tick while playing
     uint32_t run_ticks_final;  // frozen at the moment the level is finished
     bool     timer_active;     // true only while the run clock is ticking

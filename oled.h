@@ -5,32 +5,26 @@
 #include <stdint.h>
 #include <string.h>
 
-// ─────────────────────────────────────────────────────────────────────────────
 // Display dimensions
-// ─────────────────────────────────────────────────────────────────────────────
 #define OLED_W   128
 #define OLED_H    64
 
-// ─────────────────────────────────────────────────────────────────────────────
 // Pin mapping — match the names you gave in SysConfig GPIO group "OLED_CTRL"
 //   CS   → PB3   GPIO_OLED_CTRL_CS_PIN
 //   DC   → PB6   GPIO_OLED_CTRL_DC_PIN
 //   RST  → PB7   GPIO_OLED_CTRL_RST_PIN
 //   Port → GPIOB (all three share the same port)
-// ─────────────────────────────────────────────────────────────────────────────
 #define OLED_PORT       OLED_CTRL_PORT
 
 #define OLED_CS_PIN     OLED_CTRL_CS_PIN
 #define OLED_DC_PIN     OLED_CTRL_DC_PIN
 #define OLED_RST_PIN    OLED_CTRL_RST_PIN
 
-// ─────────────────────────────────────────────────────────────────────────────
 // Public API
-// ─────────────────────────────────────────────────────────────────────────────
 void OLED_Init(void);
 void OLED_Clear(void);
 void OLED_Fill(uint8_t color);
-void OLED_Flush(void);                                          // push framebuf → display
+void OLED_Flush(void); // push framebuf → display
 
 void OLED_DrawPixel(int16_t x, int16_t y, uint8_t color);
 void OLED_DrawHLine(int16_t x, int16_t y, int16_t len, uint8_t color);

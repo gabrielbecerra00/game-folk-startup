@@ -3,7 +3,7 @@
 #define BUZZER_TICK_HZ       8000
 #define BUZZER_TICKS_PER_MS  (BUZZER_TICK_HZ / 1000)
 
-// ── Menu music ───────────────────────────────────────────────────────────────
+// Menu music 
 typedef struct {
     uint16_t frequency_hz;
     uint16_t duration_ms;
@@ -23,7 +23,7 @@ static const BuzzerNote menu_song[] = {
 };
 #define MENU_SONG_LENGTH  (sizeof(menu_song) / sizeof(menu_song[0]))
 
-// ── Game over jingle ─────────────────────────────────────────────────────────
+// Game over jingle 
 static const BuzzerNote gameover_jingle[] = {
     {NOTE_B5,   100},
     {NOTE_REST,  40},
@@ -55,7 +55,7 @@ static bool        jingle_done    = false;
 
 
 
-// ── Music state ──────────────────────────────────────────────────────────────
+// Music state
 static volatile bool     buzzer_music_enabled       = false;
 static volatile uint8_t  buzzer_note_index          = 0;
 static volatile uint16_t buzzer_note_ticks_remaining = 0;
@@ -63,17 +63,17 @@ static volatile uint16_t buzzer_half_period_ticks   = 0;
 static volatile uint16_t buzzer_half_period_counter = 0;
 static volatile bool     buzzer_pin_on              = false;
 
-// ── SFX state ────────────────────────────────────────────────────────────────
+// SFX state
 static volatile uint16_t sfx_half_period_ticks   = 0;
 static volatile uint16_t sfx_half_period_counter = 0;
 static volatile uint16_t sfx_ticks_remaining     = 0;
 static volatile bool     sfx_pin_on              = false;
 
-// ── Jingle state ─────────────────────────────────────────────────────────────
+// Jingle state
 static uint8_t jingle_index   = 0;
 static bool    jingle_playing = false;
 
-// ── Internal helpers ─────────────────────────────────────────────────────────
+// Internal helpers
 static void buzzer_pin_clear(void)
 {
     DL_GPIO_clearPins(BUZZER_PORT, BUZZER_PIN_PIN);
@@ -102,11 +102,11 @@ static void buzzer_load_note(uint8_t index)
     buzzer_pin_on = false;
 }
 
-// ── SysTick ISR ──────────────────────────────────────────────────────────────
+// SysTick ISR
 void SysTick_Handler(void)
 {
     if (buzzer_music_enabled) {
-        // ── Menu music ────────────────────────────────────────────────────────
+        // Menu music
         if (buzzer_note_ticks_remaining == 0)
             buzzer_load_note(buzzer_note_index);
 
@@ -134,7 +134,7 @@ void SysTick_Handler(void)
         }
 
     } else {
-        // ── SFX one-shot ──────────────────────────────────────────────────────
+        // SFX one-shot
         if (sfx_ticks_remaining == 0) {
             buzzer_pin_clear();
             sfx_pin_on = false;
@@ -160,7 +160,7 @@ void SysTick_Handler(void)
     }
 }
 
-// ── Public API ───────────────────────────────────────────────────────────────
+// Public API
 void buzzer_init(void)
 {
     buzzer_pin_clear();

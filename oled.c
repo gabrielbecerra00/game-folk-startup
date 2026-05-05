@@ -2,17 +2,13 @@
 #include "ti/driverlib/dl_spi.h"
 #include "ti/driverlib/dl_gpio.h"
 
-// ─────────────────────────────────────────────────────────────────────────────
 // Framebuffer  (128 cols × 8 pages × 1 byte/page = 1 024 bytes)
 // Byte layout: framebuf[page * 128 + col]
 //   bit 0 = topmost pixel of the page, bit 7 = bottom
-// ─────────────────────────────────────────────────────────────────────────────
 static uint8_t fb[OLED_W * (OLED_H / 8)];   // 1 024 bytes
 
-// ─────────────────────────────────────────────────────────────────────────────
 // 5×7 font (stored column-major, LSB = top pixel)
 // Each character = 5 bytes.  First char = ASCII 0x20 (space)
-// ─────────────────────────────────────────────────────────────────────────────
 static const uint8_t font5x7[][5] = {
     {0x00,0x00,0x00,0x00,0x00}, //  (space)
     {0x00,0x00,0x5F,0x00,0x00}, // !
@@ -108,12 +104,10 @@ static const uint8_t font5x7[][5] = {
     {0x00,0x08,0x36,0x41,0x00}, // {
     {0x00,0x00,0x7F,0x00,0x00}, // |
     {0x00,0x41,0x36,0x08,0x00}, // }
-    {0x08,0x08,0x2A,0x1C,0x08}, // →  (tilde replaced with arrow for fun)
+    {0x08,0x08,0x2A,0x1C,0x08}, // →
 };
 
-// ─────────────────────────────────────────────────────────────────────────────
 // Low-level SPI / GPIO helpers
-// ─────────────────────────────────────────────────────────────────────────────
 static void delay_ms(uint32_t ms)
 {
     // Calibrated for 32 MHz MCLK. Adjust if you use a different clock.
@@ -136,9 +130,7 @@ static inline void cmd(uint8_t c)
 }
 
 
-// ─────────────────────────────────────────────────────────────────────────────
 // SSD1309 init sequence
-// ─────────────────────────────────────────────────────────────────────────────
 void OLED_Init(void)
 {
     // Hardware reset (RST low → high)
@@ -173,9 +165,7 @@ void OLED_Init(void)
     OLED_Flush();           // blank screen on startup
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
 // Framebuffer operations
-// ─────────────────────────────────────────────────────────────────────────────
 void OLED_Clear(void)  { memset(fb, 0x00, sizeof(fb)); }
 void OLED_Fill(uint8_t color) { memset(fb, color ? 0xFF : 0x00, sizeof(fb)); }
 
@@ -198,9 +188,7 @@ void OLED_Flush(void)
     DL_GPIO_setPins(OLED_PORT, OLED_CS_PIN);     // CS high
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
 // Pixel & primitives
-// ─────────────────────────────────────────────────────────────────────────────
 void OLED_DrawPixel(int16_t x, int16_t y, uint8_t color)
 {
     if ((uint16_t)x >= OLED_W || (uint16_t)y >= OLED_H) return;
@@ -260,9 +248,8 @@ void OLED_DrawBitmap(int16_t x, int16_t y, int16_t w, int16_t h, const uint8_t *
     }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
+
 // Text  (5×7 font, scalable)
-// ─────────────────────────────────────────────────────────────────────────────
 void OLED_DrawChar(int16_t x, int16_t y, char c, uint8_t color, uint8_t scale)
 {
     if (c < 0x20 || c > 0x7E) c = '?';

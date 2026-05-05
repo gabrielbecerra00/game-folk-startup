@@ -1,5 +1,6 @@
 #include "tetris.h"
 #include <string.h>
+#include <ti/driverlib/dl_rtc.h>
 
 typedef struct { int8_t r, c; } Cell;
 
@@ -135,7 +136,15 @@ static void do_lock(TetrisData *t)
 static const uint16_t line_scores[5] = {0, 100, 300, 500, 800};
 
 void tetris_init(TetrisData *t)
-{
+{   
+    DL_RTC_Calendar cal = DL_RTC_getCalendarTime(RTC);
+
+rng_state = (uint16_t)(
+    (uint16_t)cal.seconds
+  ^ ((uint16_t)cal.minutes << 5)
+  ^ ((uint16_t)cal.hours << 11)
+);
+
     memset(t, 0, sizeof(TetrisData));
     t->state      = TET_STATE_TITLE;
     t->gravity    = TET_GRAVITY_START;

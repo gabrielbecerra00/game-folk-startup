@@ -1,7 +1,43 @@
 #include "game.h"
 #include <string.h>
+#include <ti/driverlib/dl_rtc.h>
 
-// ── Helpers ──────────────────────────────────────────────────────────────────
+// RTC speedrun timer state
+// We use the RTC only to detect 1-second tick events (when the calendar
+// seconds field changes). Inside each second, run_ticks advances at game-tick
+// rate; when the RTC seconds field changes we round run_ticks up to the next
+// PLAT_TICKS_PER_SEC boundary, so the displayed time stays locked to real
+// wall-clock time without depending on absolute calendar values. This avoids
+// any race with DL_RTC_initCalendar's write-propagation delay.
+static bool     s_rtc_init_done   = false;
+static uint8_t  s_last_rtc_sec    = 0;
+static uint16_t s_subsecond_ticks = 0;
+
+static void rtc_init_at_startup(void)
+{
+    if (s_rtc_init_done) {
+        return;
+    }
+
+    // Stop the calendar before changing its values. On MSPM0G3507 the
+    // calendar must be quiescent for initCalendar writes to land cleanly.
+    DL_RTC_disableClockControl(RTC);
+
+    DL_RTC_Calendar cal;
+    cal.seconds    = 0;
+    cal.minutes    = 0;
+    cal.hours      = 0;
+    cal.dayOfWeek  = 0;
+    cal.dayOfMonth = 1;
+    cal.month      = 1;
+    cal.year       = 2024;
+    DL_RTC_initCalendar(RTC, cal, DL_RTC_FORMAT_BINARY);
+
+    DL_RTC_enableClockControl(RTC);
+    s_rtc_init_done = true;
+}
+
+// Helpers
 static void reset_ball(GameData *g)
 {
     g->ball_x  = BALL_START_X;
@@ -148,7 +184,7 @@ static void draw_world_rect(GameData *g, int16_t x, int16_t y,
     }
 }
 
-// ── Init ─────────────────────────────────────────────────────────────────────
+// Init
 void game_init(GameData *g)
 {
     memset(g, 0, sizeof(GameData));
@@ -171,13 +207,13 @@ void game2p_init(GameData *g)
     reset_2p_ball(g, 1);
 }
 
-// ── Tick (called every 16ms from timer ISR flag) ──────────────────────────────
+// Tick (called every 16ms from timer ISR flag)
 void game_tick(GameData *g, bool left, bool right, bool action)
 {
     g->sfx = SFX_NONE;
     switch (g->state) {
 
-    // ── Title screen ─────────────────────────────────────────────────────────
+    // Title screen
     case GAME_STATE_TITLE:
         g->blink_timer++;
         if (g->blink_timer >= 30) {   // toggle every ~0.5s
@@ -189,7 +225,7 @@ void game_tick(GameData *g, bool left, bool right, bool action)
         }
         break;
 
-    // ── Playing ──────────────────────────────────────────────────────────────
+    // Playing
     case GAME_STATE_PLAYING:
         // Move paddle
         if (left) {
@@ -262,14 +298,14 @@ void game_tick(GameData *g, bool left, bool right, bool action)
         }
         break;
 
-    // ── Dead — brief pause before resuming ───────────────────────────────────
+    // Dead — brief pause before resuming
     case GAME_STATE_DEAD:
         g->dead_timer--;
         if (g->dead_timer == 0)
             g->state = GAME_STATE_PLAYING;
         break;
 
-    // ── Game over ────────────────────────────────────────────────────────────
+    // Game over
     case GAME_STATE_GAMEOVER:
         g->blink_timer++;
         if (g->blink_timer >= 30) {
@@ -284,7 +320,7 @@ void game_tick(GameData *g, bool left, bool right, bool action)
     }
 }
 
-// ── Render ───────────────────────────────────────────────────────────────────
+// Render
 void game_render(GameData *g)
 {
     OLED_Clear();
@@ -539,6 +575,11 @@ void platformer_init(GameData *g)
     g->run_ticks       = 0;
     g->run_ticks_final = 0;
     g->timer_active    = false;
+
+    // Initialize the RTC early so the calendar has time to settle before the
+    // user presses A. By the time the title-screen blink has cycled a few
+    // times, any propagation delay from initCalendar is long gone.
+    rtc_init_at_startup();
 }
 
 void platformer_tick(GameData *g, bool left, bool right, bool jump)
@@ -552,7 +593,13 @@ void platformer_tick(GameData *g, bool left, bool right, bool jump)
             g->blink_on = !g->blink_on;
         }
         if (jump) {
-            // Start the speedrun clock the moment the run begins
+            // Start the speedrun clock the moment the run begins. The RTC was
+            // already initialized in platformer_init, so we just grab the
+            // current seconds field as the reference for tick detection.
+            DL_RTC_Calendar now = DL_RTC_getCalendarTime(RTC);
+            s_last_rtc_sec    = now.seconds;
+            s_subsecond_ticks = 0;
+
             g->run_ticks    = 0;
             g->timer_active = true;
             g->state = GAME_STATE_PLAYING;
@@ -561,18 +608,28 @@ void platformer_tick(GameData *g, bool left, bool right, bool jump)
 
     case GAME_STATE_PLAYING:
     {
-        // ── Speedrun clock ────────────────────────────────────────────────────
-        // Increment every game tick. To use the RTC peripheral instead, replace
-        // this block with an elapsed-time read:
-        //
-        //   uint32_t now_sec = DL_RTC_getCalendarSeconds(RTC);
-        //   uint32_t now_sub = DL_RTC_getCalendarSubseconds(RTC); // 1/256 s
-        //   g->run_ticks = (now_sec - g->rtc_start_sec) * PLAT_TICKS_PER_SEC
-        //                + (now_sub * PLAT_TICKS_PER_SEC) / 256u;
-        //
-        // For the tick-counter approach (no extra hardware needed):
+        // Speedrun clock (RTC second-tick detection)
+        // We never read the absolute calendar value — only watch for the
+        // seconds field changing. Each game tick within a second adds 1 to
+        // run_ticks; when the RTC seconds field rolls over, we round up to
+        // the next PLAT_TICKS_PER_SEC boundary so the displayed time stays
+        // locked to wall-clock time even though game ticks run at 62.5 Hz.
         if (g->timer_active) {
-            g->run_ticks++;
+            DL_RTC_Calendar now = DL_RTC_getCalendarTime(RTC);
+
+            if (now.seconds != s_last_rtc_sec) {
+                s_last_rtc_sec = now.seconds;
+                if (s_subsecond_ticks < PLAT_TICKS_PER_SEC) {
+                    g->run_ticks +=
+                        (uint32_t)(PLAT_TICKS_PER_SEC - s_subsecond_ticks);
+                }
+                s_subsecond_ticks = 0;
+            } else {
+                if (s_subsecond_ticks < PLAT_TICKS_PER_SEC) {
+                    s_subsecond_ticks++;
+                    g->run_ticks++;
+                }
+            }
         }
 
         int16_t old_y = g->player_y;
@@ -756,7 +813,7 @@ static void platformer_draw_level(GameData *g)
     draw_world_rect(g, PLAT_GOAL_X + 2, 30, 12, 7, 1);
 }
 
-// ── Speedrun timer formatter ──────────────────────────────────────────────────
+// Speedrun timer formatter
 // Produces "M:SS.tt" (minutes, seconds, centiseconds) into buf[9].
 // Uses PLAT_TICKS_PER_SEC to convert raw ticks to real time.
 static void format_run_time(char *buf, uint32_t ticks)

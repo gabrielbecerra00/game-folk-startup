@@ -7,7 +7,7 @@
 #include "game.h"
 #include "tetris.h"
 
-// ── Note frequencies (Hz) ────────────────────────────────────────────────────
+// Note frequencies (Hz)
 #define NOTE_REST     0
 #define NOTE_A4     440
 #define NOTE_B4     494
@@ -25,14 +25,14 @@
 #define NOTE_D6    1175
 #define NOTE_E6    1319
 
-// ── Types ────────────────────────────────────────────────────────────────────
+// Types
 typedef enum {
     JINGLE_GAMEOVER,
     JINGLE_TETRIS_CLEAR,
     JINGLE_TETRIS_FAIL
 } JingleType;
 
-// ── Public API ───────────────────────────────────────────────────────────────
+// Public API
 void buzzer_init(void);
 void buzzer_set_music_enabled(bool enabled);
 void sfx_play(uint16_t frequency_hz, uint16_t duration_ms);
