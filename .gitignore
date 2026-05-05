@@ -16,3 +16,4 @@ Debug/
 *.d
 *.a
 *.elf
+.settings/
